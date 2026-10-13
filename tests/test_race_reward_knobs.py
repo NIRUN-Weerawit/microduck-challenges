@@ -9,7 +9,7 @@ import pytest
 from arena.workshop.challenges import read_challenge, write_values
 
 
-@pytest.mark.parametrize("folder,count", [("hill_climb_1m5", 18)])
+@pytest.mark.parametrize("folder,count", [("hill_climb_1m5", 18), ("roller_sprint_2m", 21)])
 def test_all_rewards_exposed_and_defaults_match(folder, count):
     module = importlib.import_module(f"microduck_challenges.{folder}.env")
     cfg = module.make_env_cfg()
@@ -29,7 +29,7 @@ def test_all_rewards_exposed_and_defaults_match(folder, count):
             assert cfg.rewards[term].weight == pytest.approx(values[knob])
 
 
-@pytest.mark.parametrize("folder", ["hill_climb_1m5"])
+@pytest.mark.parametrize("folder", ["hill_climb_1m5", "roller_sprint_2m"])
 def test_disabling_ramped_weights_stays_disabled(folder, monkeypatch):
     module = importlib.import_module(f"microduck_challenges.{folder}.env")
     values = module.challenge.params(module.__file__)
@@ -44,7 +44,7 @@ def test_disabling_ramped_weights_stays_disabled(folder, monkeypatch):
             assert cfg.rewards[curriculum.params["reward_name"]].weight == 0
 
 
-@pytest.mark.parametrize("folder", ["hill_climb_1m5"])
+@pytest.mark.parametrize("folder", ["hill_climb_1m5", "roller_sprint_2m"])
 def test_workshop_can_save_all_reward_weights(folder, tmp_path):
     module = importlib.import_module(f"microduck_challenges.{folder}.env")
     path = tmp_path / "challenge.toml"
