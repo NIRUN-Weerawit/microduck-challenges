@@ -124,6 +124,8 @@ from mjlab_microduck.robot.microduck_constants import MICRODUCK_WALK_ROBOT_CFG
 from mjlab_microduck.tasks import mdp as microduck_mdp
 from mjlab_microduck.tasks.symmetry import PpoWithSymmetryCfg, SYMMETRY_CFG
 
+from .rewards import alternating_step_cadence
+
 
 def heading_error(env: ManagerBasedRlEnv) -> torch.Tensor:
     """How far the trunk has turned from the heading heading_hold holds (rad, wrapped).
@@ -160,8 +162,8 @@ def make_env_cfg(
         # Lower body
         r".*hip_yaw.*": 0.3,
         r".*hip_roll.*": 0.15,  # Allow wider leg spread during locomotion; standing stays tight.
-        r".*hip_pitch.*": 0.4,
-        r".*knee.*": 0.4,
+        r".*hip_pitch.*": 0.6,  # More room for forward leg swings.
+        r".*knee.*": 0.6,
         r".*ankle.*": 0.25, # was 0.15
     }
 
@@ -274,13 +276,13 @@ def make_env_cfg(
     )
 
 
-    # air_time window [0.125, 0.300] s. NOTE: standing still at zero command is
-    # taught by the standing_envs curriculum (→25% standing envs by ~iter 2000),
-    # not by an explicit stillness/no-stepping term.
-    cfg.rewards["air_time"].weight = knobs["step_reward"]
-    cfg.rewards["air_time"].params["command_threshold"] = 0.01
-    cfg.rewards["air_time"].params["threshold_min"] = 0.125
-    cfg.rewards["air_time"].params["threshold_max"] = 0.300
+    # Keep the air_time term name so the workshop's step_reward knob stays live.
+    # Pay for completed alternating steps, rather than time spent airborne.
+    cfg.rewards["air_time"] = RewardTermCfg(
+        func=alternating_step_cadence,
+        weight=knobs["step_reward"],
+        params={"sensor_name": feet_ground_cfg.name, "command_name": "twist"},
+    )
 
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
@@ -306,7 +308,7 @@ def make_env_cfg(
     )
 
     # Action smoothness: stage-0 value; the action_rate_weight curriculum below
-    # ramps it -0.1 → -1.0 by iter 1500.
+    # ramps it -0.1 → -0.5 by iter 1500 to allow quicker leg commands.
     cfg.rewards["action_rate_l2"].weight = -0.1
 
     cfg.rewards["foot_clearance"].params["command_threshold"] = 0.01
@@ -678,7 +680,7 @@ def make_env_cfg(
     cfg.scene.terrain.terrain_generator = None
 
     # action_rate weight ramp: gentle smoothing while the gait bootstraps, then
-    # tighten to -1.0 by iter 1500.
+    # tighten to -0.5 by iter 1500.
     cfg.curriculum["action_rate_weight"] = CurriculumTermCfg(
         func=microduck_mdp.reward_weight,
         params={
@@ -686,10 +688,10 @@ def make_env_cfg(
             "weight_stages": [
                 {"step": 0, "weight": -0.1},
                 {"step": 500 * NUM_STEPS_PER_ENV, "weight": -0.2},
-                {"step": 750 * NUM_STEPS_PER_ENV, "weight": -0.4},
-                {"step": 1000 * NUM_STEPS_PER_ENV, "weight": -0.6},
-                {"step": 1250 * NUM_STEPS_PER_ENV, "weight": -0.8},
-                {"step": 1500 * NUM_STEPS_PER_ENV, "weight": -1.0},
+                {"step": 750 * NUM_STEPS_PER_ENV, "weight": -0.3},
+                {"step": 1000 * NUM_STEPS_PER_ENV, "weight": -0.4},
+                {"step": 1250 * NUM_STEPS_PER_ENV, "weight": -0.45},
+                {"step": 1500 * NUM_STEPS_PER_ENV, "weight": -0.5},
             ],
         },
     )
