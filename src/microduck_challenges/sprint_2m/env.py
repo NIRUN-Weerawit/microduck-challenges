@@ -126,6 +126,26 @@ from mjlab_microduck.tasks.symmetry import PpoWithSymmetryCfg, SYMMETRY_CFG
 
 from .rewards import alternating_step_cadence
 
+# Every configured reward has a workshop knob. Penalties use negative weights;
+# action_rate_reward specifies the final curriculum weight, not its initial value.
+REWARD_WEIGHT_KNOBS = {
+    "forward_reward": "track_linear_velocity",
+    "upright_reward": "upright",
+    "step_reward": "air_time",
+    "angular_velocity_reward": "track_angular_velocity",
+    "pose_reward": "pose",
+    "body_ang_vel_reward": "body_ang_vel",
+    "angular_momentum_reward": "angular_momentum",
+    "joint_limits_reward": "dof_pos_limits",
+    "action_rate_reward": "action_rate_l2",
+    "foot_clearance_reward": "foot_clearance",
+    "foot_swing_height_reward": "foot_swing_height",
+    "foot_slip_reward": "foot_slip",
+    "self_collisions_reward": "self_collisions",
+    "heading_hold_reward": "heading_hold",
+    "body_pose_reward": "body_pose_tracking",
+}
+
 
 def heading_error(env: ManagerBasedRlEnv) -> torch.Tensor:
     """How far the trunk has turned from the heading heading_hold holds (rad, wrapped).
@@ -779,6 +799,16 @@ def make_env_cfg(
 
     # Never re-enable the head-droop penalty later in training.
     cfg.curriculum.pop("head_pose_bias_weight", None)
+
+    # Apply UI weights after all inherited and challenge-specific defaults.
+    for knob, reward_name in REWARD_WEIGHT_KNOBS.items():
+        cfg.rewards[reward_name].weight = knobs[knob]
+    # Preserve gentle bootstrapping while letting the UI set the final strength.
+    # The default -0.5 reproduces the existing -0.1 ... -0.5 schedule.
+    stages = cfg.curriculum["action_rate_weight"].params["weight_stages"]
+    for stage, fraction in zip(stages, (0.2, 0.4, 0.6, 0.8, 0.9, 1.0), strict=True):
+        stage["weight"] = knobs["action_rate_reward"] * fraction
+    cfg.rewards["action_rate_l2"].weight = stages[0]["weight"]
 
     return cfg
 

@@ -43,7 +43,7 @@ observation noise.
 
 | File | What it holds | Change it? |
 |---|---|---|
-| `challenge.toml` `[params]` | The three knobs below | Yes, first. Keep each value within its `min`/`max` (the workshop refuses others) |
+| `challenge.toml` `[params]` | All 15 reward weights; the original three are listed below | Yes, first. Keep each value within its `min`/`max` (the workshop refuses others) |
 | `challenge.toml` `[recipe]` | `num_envs` 4096, `max_iterations` 3000, `seed` 1 | Yes, when agreed with the user |
 | `env.py` | The whole environment: rewards, commands, domain randomization, curricula, terrain, `RL_CFG` (network, PPO, checkpoints every 250 iterations) | Yes, once the knobs are not enough |
 | `rewards.py` | Does not exist yet: create it for a custom reward term, then add the term to `cfg.rewards` in `env.py` | Yes |
@@ -54,6 +54,13 @@ observation noise.
 | `forward_reward` | Follow the speed order | 2.0 | 0.5–5.0 | `track_linear_velocity` weight |
 | `upright_reward` | Stay upright | 2.0 | 0.5–5.0 | `upright` weight |
 | `step_reward` | Lift your feet | 3.0 | 0.0–6.0 | `air_time` weight |
+
+Every configured sprint reward is exposed in `[params]`; `REWARD_WEIGHT_KNOBS`
+in `env.py` maps UI controls to reward terms. Penalty weights are negative, with
+zero disabling them. `action_rate_reward` sets the final smoothing weight;
+the curriculum starts at 20% of it and reaches 100% at iteration 1500.
+The `air_time` term now rewards completed alternating steps at speed-dependent
+cadence, rather than time spent airborne. Head posture rewards remain removed.
 
 Do not change, or the Arena cannot race the policy or the tests fail:
 

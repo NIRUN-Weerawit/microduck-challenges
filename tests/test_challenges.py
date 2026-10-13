@@ -26,6 +26,18 @@ CHALLENGES = {
         "forward_reward": ("track_linear_velocity", 3.7),
         "upright_reward": ("upright", 1.3),
         "step_reward": ("air_time", 4.1),
+        "angular_velocity_reward": ("track_angular_velocity", 1.7),
+        "pose_reward": ("pose", 1.2),
+        "body_ang_vel_reward": ("body_ang_vel", -0.12),
+        "angular_momentum_reward": ("angular_momentum", -0.08),
+        "joint_limits_reward": ("dof_pos_limits", -1.2),
+        "action_rate_reward": ("action_rate_l2", -0.7),
+        "foot_clearance_reward": ("foot_clearance", -1.5),
+        "foot_swing_height_reward": ("foot_swing_height", -0.4),
+        "foot_slip_reward": ("foot_slip", -0.2),
+        "self_collisions_reward": ("self_collisions", -1.5),
+        "heading_hold_reward": ("heading_hold", 1.4),
+        "body_pose_reward": ("body_pose_tracking", 0.3),
     },
     "got_a_talent": {
         "head_reward": ("head_pose_tracking", 1.3),
@@ -200,7 +212,14 @@ def test_knobs_reach_the_config(folder, tmp_path, monkeypatch):
     for knob, (term, value) in CHALLENGES[folder].items():
         if term is None:
             continue
-        assert math.isclose(cfg.rewards[term].weight, value), f"{knob} does not set {term}"
+        ramps = {"action_rate_reward": "action_rate_weight", "head_pose_bias_reward": "head_pose_bias_weight"}
+        if knob in ramps:
+            stages = cfg.curriculum[ramps[knob]].params["weight_stages"]
+            assert math.isclose(stages[-1]["weight"], value)
+            assert math.isclose(cfg.rewards[term].weight, stages[0]["weight"])
+        else:
+            assert math.isclose(cfg.rewards[term].weight, value), f"{knob} does not set {term}"
+
 
 
 def _set_value(text: str, knob: str, value: float) -> str:
