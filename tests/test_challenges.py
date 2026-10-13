@@ -26,6 +26,18 @@ CHALLENGES = {
         "forward_reward": ("track_linear_velocity", 3.7),
         "upright_reward": ("upright", 1.3),
         "step_reward": ("air_time", 4.1),
+        "angular_velocity_reward": ("track_angular_velocity", 1.7),
+        "pose_reward": ("pose", 1.2),
+        "body_ang_vel_reward": ("body_ang_vel", -0.12),
+        "angular_momentum_reward": ("angular_momentum", -0.08),
+        "joint_limits_reward": ("dof_pos_limits", -1.2),
+        "action_rate_reward": ("action_rate_l2", -0.7),
+        "foot_clearance_reward": ("foot_clearance", -1.5),
+        "foot_swing_height_reward": ("foot_swing_height", -0.4),
+        "foot_slip_reward": ("foot_slip", -0.2),
+        "self_collisions_reward": ("self_collisions", -1.5),
+        "heading_hold_reward": ("heading_hold", 1.4),
+        "body_pose_reward": ("body_pose_tracking", 0.3),
     },
     "got_a_talent": {
         "head_reward": ("head_pose_tracking", 1.3),
@@ -33,12 +45,46 @@ CHALLENGES = {
         "upright_reward": ("upright_linear", 3.7),
     },
     "hill_climb_1m5": {
+        "progress_reward": ("supported_forward_progress", 1.2),
+        "angular_velocity_reward": ("track_angular_velocity", 0.7),
+        "pose_reward": ("pose", 0.7),
+        "body_ang_vel_reward": ("body_ang_vel", -0.034999999999999996),
+        "angular_momentum_reward": ("angular_momentum", -0.013999999999999999),
+        "joint_limits_reward": ("dof_pos_limits", -0.7),
+        "action_rate_reward": ("action_rate_l2", -0.7),
+        "foot_clearance_reward": ("foot_clearance", -1.4),
+        "foot_swing_height_reward": ("foot_swing_height", -0.175),
+        "foot_slip_reward": ("foot_slip", -0.06999999999999999),
+        "self_collisions_reward": ("self_collisions", -0.7),
+        "heading_hold_reward": ("heading_hold", 0.7),
+        "body_pose_reward": ("body_pose_tracking", 0.7),
+        "head_pose_reward": ("head_pose_tracking", 0.7),
+        "head_pose_bias_reward": ("head_pose_bias", 0.7),
         "forward_reward": ("track_linear_velocity", 3.7),
         "upright_reward": ("upright", 1.3),
         "step_reward": ("air_time", 4.1),
         "max_slope_deg": (None, 12.0),
     },
     "roller_sprint_2m": {
+        "pose_reward": ("pose", 0.7),
+        "body_ang_vel_reward": ("body_ang_vel", -0.034999999999999996),
+        "angular_momentum_reward": ("angular_momentum", -0.013999999999999999),
+        "action_rate_reward": ("action_rate_l2", -1.4),
+        "com_height_target_reward": ("com_height_target", 0.7),
+        "self_collisions_reward": ("self_collisions", -0.7),
+        "feet_flat_reward": ("feet_flat", -1.4),
+        "neck_action_rate_l2_reward": ("neck_action_rate_l2", -0.35),
+        "neck_joint_pos_l2_reward": ("neck_joint_pos_l2", -0.35),
+        "joint_torques_l2_reward": ("joint_torques_l2", -0.0007),
+        "action_over_limit_reward": ("action_over_limit", -0.35),
+        "hip_roll_neutral_reward": ("hip_roll_neutral", -1.4),
+        "braking_reward": ("braking", 0.7),
+        "skating_air_time_reward": ("skating_air_time", 0.7),
+        "glide_reward": ("glide", 0.7),
+        "single_support_reward": ("single_support", 0.7),
+        "gait_symmetry_reward": ("gait_symmetry", -0.7),
+        "forward_lean_reward": ("forward_lean", 0.7),
+        "heading_hold_reward": ("heading_hold", 0.7),
         "speed_reward": ("wheel_speed", 13.5),
         "upright_reward": ("upright", 1.3),
     },
@@ -200,7 +246,14 @@ def test_knobs_reach_the_config(folder, tmp_path, monkeypatch):
     for knob, (term, value) in CHALLENGES[folder].items():
         if term is None:
             continue
-        assert math.isclose(cfg.rewards[term].weight, value), f"{knob} does not set {term}"
+        ramps = {"action_rate_reward": "action_rate_weight", "head_pose_bias_reward": "head_pose_bias_weight"}
+        if knob in ramps:
+            stages = cfg.curriculum[ramps[knob]].params["weight_stages"]
+            assert math.isclose(stages[-1]["weight"], value)
+            assert math.isclose(cfg.rewards[term].weight, stages[0]["weight"])
+        else:
+            assert math.isclose(cfg.rewards[term].weight, value), f"{knob} does not set {term}"
+
 
 
 def _set_value(text: str, knob: str, value: float) -> str:

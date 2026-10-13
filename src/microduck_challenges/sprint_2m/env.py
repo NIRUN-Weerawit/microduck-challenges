@@ -124,6 +124,28 @@ from mjlab_microduck.robot.microduck_constants import MICRODUCK_WALK_ROBOT_CFG
 from mjlab_microduck.tasks import mdp as microduck_mdp
 from mjlab_microduck.tasks.symmetry import PpoWithSymmetryCfg, SYMMETRY_CFG
 
+from .rewards import alternating_step_cadence
+
+# Every configured reward has a workshop knob. Penalties use negative weights;
+# action_rate_reward specifies the final curriculum weight, not its initial value.
+REWARD_WEIGHT_KNOBS = {
+    "forward_reward": "track_linear_velocity",
+    "upright_reward": "upright",
+    "step_reward": "air_time",
+    "angular_velocity_reward": "track_angular_velocity",
+    "pose_reward": "pose",
+    "body_ang_vel_reward": "body_ang_vel",
+    "angular_momentum_reward": "angular_momentum",
+    "joint_limits_reward": "dof_pos_limits",
+    "action_rate_reward": "action_rate_l2",
+    "foot_clearance_reward": "foot_clearance",
+    "foot_swing_height_reward": "foot_swing_height",
+    "foot_slip_reward": "foot_slip",
+    "self_collisions_reward": "self_collisions",
+    "heading_hold_reward": "heading_hold",
+    "body_pose_reward": "body_pose_tracking",
+}
+
 
 def heading_error(env: ManagerBasedRlEnv) -> torch.Tensor:
     """How far the trunk has turned from the heading heading_hold holds (rad, wrapped).
@@ -160,8 +182,8 @@ def make_env_cfg(
         # Lower body
         r".*hip_yaw.*": 0.3,
         r".*hip_roll.*": 0.15,  # Allow wider leg spread during locomotion; standing stays tight.
-        r".*hip_pitch.*": 0.4,
-        r".*knee.*": 0.4,
+        r".*hip_pitch.*": 0.6,  # More room for forward leg swings.
+        r".*knee.*": 0.6,
         r".*ankle.*": 0.25, # was 0.15
     }
 
@@ -274,13 +296,13 @@ def make_env_cfg(
     )
 
 
-    # air_time window [0.125, 0.300] s. NOTE: standing still at zero command is
-    # taught by the standing_envs curriculum (→25% standing envs by ~iter 2000),
-    # not by an explicit stillness/no-stepping term.
-    cfg.rewards["air_time"].weight = knobs["step_reward"]
-    cfg.rewards["air_time"].params["command_threshold"] = 0.01
-    cfg.rewards["air_time"].params["threshold_min"] = 0.125
-    cfg.rewards["air_time"].params["threshold_max"] = 0.300
+    # Keep the air_time term name so the workshop's step_reward knob stays live.
+    # Pay for completed alternating steps, rather than time spent airborne.
+    cfg.rewards["air_time"] = RewardTermCfg(
+        func=alternating_step_cadence,
+        weight=knobs["step_reward"],
+        params={"sensor_name": feet_ground_cfg.name, "command_name": "twist"},
+    )
 
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
@@ -306,7 +328,7 @@ def make_env_cfg(
     )
 
     # Action smoothness: stage-0 value; the action_rate_weight curriculum below
-    # ramps it -0.1 → -1.0 by iter 1500.
+    # ramps it -0.1 → -0.5 by iter 1500 to allow quicker leg commands.
     cfg.rewards["action_rate_l2"].weight = -0.1
 
     cfg.rewards["foot_clearance"].params["command_threshold"] = 0.01
@@ -678,7 +700,7 @@ def make_env_cfg(
     cfg.scene.terrain.terrain_generator = None
 
     # action_rate weight ramp: gentle smoothing while the gait bootstraps, then
-    # tighten to -1.0 by iter 1500.
+    # tighten to -0.5 by iter 1500.
     cfg.curriculum["action_rate_weight"] = CurriculumTermCfg(
         func=microduck_mdp.reward_weight,
         params={
@@ -686,10 +708,10 @@ def make_env_cfg(
             "weight_stages": [
                 {"step": 0, "weight": -0.1},
                 {"step": 500 * NUM_STEPS_PER_ENV, "weight": -0.2},
-                {"step": 750 * NUM_STEPS_PER_ENV, "weight": -0.4},
-                {"step": 1000 * NUM_STEPS_PER_ENV, "weight": -0.6},
-                {"step": 1250 * NUM_STEPS_PER_ENV, "weight": -0.8},
-                {"step": 1500 * NUM_STEPS_PER_ENV, "weight": -1.0},
+                {"step": 750 * NUM_STEPS_PER_ENV, "weight": -0.3},
+                {"step": 1000 * NUM_STEPS_PER_ENV, "weight": -0.4},
+                {"step": 1250 * NUM_STEPS_PER_ENV, "weight": -0.45},
+                {"step": 1500 * NUM_STEPS_PER_ENV, "weight": -0.5},
             ],
         },
     )
@@ -777,6 +799,16 @@ def make_env_cfg(
 
     # Never re-enable the head-droop penalty later in training.
     cfg.curriculum.pop("head_pose_bias_weight", None)
+
+    # Apply UI weights after all inherited and challenge-specific defaults.
+    for knob, reward_name in REWARD_WEIGHT_KNOBS.items():
+        cfg.rewards[reward_name].weight = knobs[knob]
+    # Preserve gentle bootstrapping while letting the UI set the final strength.
+    # The default -0.5 reproduces the existing -0.1 ... -0.5 schedule.
+    stages = cfg.curriculum["action_rate_weight"].params["weight_stages"]
+    for stage, fraction in zip(stages, (0.2, 0.4, 0.6, 0.8, 0.9, 1.0), strict=True):
+        stage["weight"] = knobs["action_rate_reward"] * fraction
+    cfg.rewards["action_rate_l2"].weight = stages[0]["weight"]
 
     return cfg
 

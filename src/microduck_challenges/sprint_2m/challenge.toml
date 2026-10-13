@@ -5,9 +5,15 @@ task  = "Mjlab-Sprint2m-MicroDuck"
 kind  = "perpetual"
 
 [recipe]                  # the first training, as is
+<<<<<<< HEAD
 num_envs       = 8192
 max_iterations = 3000
 seed           = 42
+=======
+num_envs = 8192
+max_iterations = 2500
+seed = 42
+>>>>>>> 349452a8b7241d893bbf6bba105a347e29a17d17
 
 [params.forward_reward]
 label = "Follow the speed order"
@@ -22,7 +28,86 @@ min   = 0.5
 max   = 5.0
 
 [params.step_reward]
+<<<<<<< HEAD
 label = "Lift your feet"
 value = 5.49391727493917
+=======
+label = "Track alternating step cadence"
+value = 5.02676399026764
+>>>>>>> 349452a8b7241d893bbf6bba105a347e29a17d17
 min   = 0.0
 max   = 6.0
+
+# Positive objectives: zero disables a term. Penalties below use signed weights:
+# closer to zero is weaker. Action smoothing sets the final curriculum strength.
+[params.angular_velocity_reward]
+label = "Track commanded yaw rate"
+value = 2.0
+min = 0.0
+max = 5.0
+
+[params.pose_reward]
+label = "Keep legs near default pose"
+value = 1.0
+min = 0.0
+max = 5.0
+
+[params.body_ang_vel_reward]
+label = "Trunk rotation penalty (negative)"
+value = -0.05
+min = -1.0
+max = 0.0
+
+[params.angular_momentum_reward]
+label = "Angular momentum penalty (negative)"
+value = -0.02
+min = -1.0
+max = 0.0
+
+[params.joint_limits_reward]
+label = "Joint limit penalty (negative)"
+value = -1.0
+min = -5.0
+max = 0.0
+
+[params.action_rate_reward]
+label = "Action smoothing final penalty (negative)"
+value = -0.5
+min = -2.0
+max = 0.0
+
+[params.foot_clearance_reward]
+label = "Foot clearance penalty (negative)"
+value = -2.0
+min = -5.0
+max = 0.0
+
+[params.foot_swing_height_reward]
+label = "Swing height error penalty (negative)"
+value = -0.25
+min = -5.0
+max = 0.0
+
+[params.foot_slip_reward]
+label = "Foot slip penalty (negative)"
+value = -0.1
+min = -2.0
+max = 0.0
+
+[params.self_collisions_reward]
+label = "Self-collision penalty (negative)"
+value = -1.0
+min = -5.0
+max = 0.0
+
+[params.heading_hold_reward]
+label = "Keep original heading"
+value = 1.0
+min = 0.0
+max = 5.0
+
+[params.body_pose_reward]
+label = "Track body pose (disabled by default)"
+value = 0.0
+min = 0.0
+max = 5.0

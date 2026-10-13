@@ -21,3 +21,120 @@ label = "Stay upright"
 value = 2.0
 min   = 0.5
 max   = 5.0
+
+# Reward weights: zero disables a term; negative cost weights weaken toward zero.
+# Action smoothing and head-bias knobs specify the final curriculum weight.
+
+[params.pose_reward]
+label = "Pose"
+value = 2.0
+min = 0.0
+max = 6.0
+
+[params.body_ang_vel_reward]
+label = "Body ang vel penalty (negative)"
+value = -0.05
+min = -5.0
+max = 0.0
+
+[params.angular_momentum_reward]
+label = "Angular momentum penalty (negative)"
+value = -0.02
+min = -5.0
+max = 0.0
+
+[params.action_rate_reward]
+label = "Action smoothing final penalty (negative)"
+value = -1.0
+min = -6.0
+max = 0.0
+
+[params.com_height_target_reward]
+label = "Com height target"
+value = 2.0
+min = 0.0
+max = 6.0
+
+[params.self_collisions_reward]
+label = "Self collisions penalty (negative)"
+value = -1.0
+min = -5.0
+max = 0.0
+
+[params.feet_flat_reward]
+label = "Feet flat penalty (negative)"
+value = -2.0
+min = -6.0
+max = 0.0
+
+[params.neck_action_rate_l2_reward]
+label = "Neck action rate l2 penalty (negative)"
+value = -0.5
+min = -5.0
+max = 0.0
+
+[params.neck_joint_pos_l2_reward]
+label = "Neck joint pos l2 penalty (negative)"
+value = -0.5
+min = -5.0
+max = 0.0
+
+[params.joint_torques_l2_reward]
+label = "Joint torques l2 penalty (negative)"
+value = -0.001
+min = -0.01
+max = 0.0
+
+[params.action_over_limit_reward]
+label = "Action over limit penalty (negative)"
+value = -0.5
+min = -5.0
+max = 0.0
+
+[params.hip_roll_neutral_reward]
+label = "Hip roll neutral penalty (negative)"
+value = -1.0
+min = -6.0
+max = 0.0
+
+[params.braking_reward]
+label = "Braking"
+value = 1.0
+min = 0.0
+max = 5.0
+
+[params.skating_air_time_reward]
+label = "Complete alternating recovery strokes"
+value = 1.5
+min = 0.0
+max = 5.0
+
+[params.glide_reward]
+label = "Glide"
+value = 4.0
+min = 0.0
+max = 12.0
+
+[params.single_support_reward]
+label = "Single support"
+value = 3.0
+min = 0.0
+max = 9.0
+
+[params.gait_symmetry_reward]
+label = "Gait symmetry penalty (negative)"
+value = -1.0
+min = -5.0
+max = 0.0
+
+[params.forward_lean_reward]
+label = "Forward lean"
+value = 1.5
+min = 0.0
+max = 5.0
+
+[params.heading_hold_reward]
+label = "Heading hold"
+value = 1.0
+min = 0.0
+max = 5.0

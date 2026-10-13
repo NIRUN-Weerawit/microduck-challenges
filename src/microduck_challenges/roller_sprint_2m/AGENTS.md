@@ -45,7 +45,7 @@ observation noise.
 
 | File | What it holds | Change it? |
 |---|---|---|
-| `challenge.toml` `[params]` | The two knobs below | Yes, first. Keep each value within its `min`/`max` (the workshop refuses others) |
+| `challenge.toml` `[params]` | All 21 reward weights | Yes, first. Keep each value within its `min`/`max` (the workshop refuses others) |
 | `challenge.toml` `[recipe]` | `num_envs` 4096, `max_iterations` 3000, `seed` 1 | Yes, when agreed with the user |
 | `env.py` | The whole environment: rewards, commands, domain randomization, curricula, terrain, `RL_CFG` (network, PPO, checkpoints every 250 iterations) | Yes, once the knobs are not enough |
 | `rewards.py` | Does not exist yet: create it for a custom reward term, then add the term to `cfg.rewards` in `env.py` | Yes |
@@ -78,6 +78,18 @@ The robot model and the reward functions (`microduck_mdp`) live in the `mjlab-mi
 and are not edited here. Its [AGENTS.md](https://github.com/pollen-robotics/microduck_rl/blob/develop/AGENTS.md)
 holds the reward-design rules learned on this robot: read its "Reward design" section before
 writing a reward term.
+
+All configured reward weights are exposed in `[params]`, mapped by
+`REWARD_WEIGHT_KNOBS` in `env.py`. Ramped weights specify the final strength,
+with the original curriculum timing preserved. Most penalties use negative
+weights; Hill Climb head bias is self-negating and uses a positive weight.
+
+The roller speed reward uses grounded-wheel speed capped by actual body travel
+along the spawn heading, and pays zero when fallen. Recovery rewards completed
+alternating landings at 1.25--2.5 steps/s; airborne holds do not pay. Glide and
+single-support objectives stay active. Final smoothing defaults to -1.0 and
+hip-roll centering to -1.0 to allow stronger pushes. These changes still require
+Arena evaluation to establish whether they improve race times.
 
 ## Running a training
 

@@ -104,6 +104,35 @@ from mjlab_microduck.robot.microduck_constants import MICRODUCK_WALK_ROLLERS_ROB
 from mjlab_microduck.tasks import mdp as microduck_mdp
 from mjlab_microduck.tasks.symmetry import PpoWithSymmetryCfg, SYMMETRY_CFG
 
+from ..race_rewards import alternating_landings
+from .rewards import grounded_wheel_progress
+
+
+# All reward weights are controlled by the workshop; ramped knobs set final weights.
+REWARD_WEIGHT_KNOBS = {
+    "pose_reward": "pose",
+    "upright_reward": "upright",
+    "body_ang_vel_reward": "body_ang_vel",
+    "angular_momentum_reward": "angular_momentum",
+    "action_rate_reward": "action_rate_l2",
+    "com_height_target_reward": "com_height_target",
+    "self_collisions_reward": "self_collisions",
+    "feet_flat_reward": "feet_flat",
+    "neck_action_rate_l2_reward": "neck_action_rate_l2",
+    "neck_joint_pos_l2_reward": "neck_joint_pos_l2",
+    "joint_torques_l2_reward": "joint_torques_l2",
+    "action_over_limit_reward": "action_over_limit",
+    "hip_roll_neutral_reward": "hip_roll_neutral",
+    "speed_reward": "wheel_speed",
+    "braking_reward": "braking",
+    "skating_air_time_reward": "skating_air_time",
+    "glide_reward": "glide",
+    "single_support_reward": "single_support",
+    "gait_symmetry_reward": "gait_symmetry",
+    "forward_lean_reward": "forward_lean",
+    "heading_hold_reward": "heading_hold",
+}
+
 
 def make_env_cfg(
     play: bool = False,
@@ -270,16 +299,12 @@ def make_env_cfg(
                       # flattens the push.
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=(r".*hip_roll.*",))},
     )
-    # Sole positive task reward — robot must spin wheels to get anything
-    # vel_scale 0.5 -> 0.3: the tanh target speed. Measured on a trained ckpt, the
-    # policy only reaches ~0.33 m/s at max push, so a 0.5 target sat on the
-    # un-saturated tanh slope and kept pushing it to go faster than it can (over-
-    # reach -> launch instability). 0.3 saturates near the achievable speed, so it
-    # is 'content' there instead of over-driving.
+    # Reward grounded wheel rolling accompanied by forward body travel.
+    # Unloaded-wheel spin, sideways travel and falling cannot earn speed reward.
     cfg.rewards["wheel_speed"] = RewardTermCfg(
-        func=microduck_mdp.wheel_speed_reward,
+        func=grounded_wheel_progress,
         weight=knobs["speed_reward"],
-        params={"command_name": "twist", "vel_scale": 0.3},
+        params={"sensor_name": feet_ground_cfg.name, "command_name": "twist", "vel_scale": 0.3},
     )
     # Brake: reward stopping when cmd_x < 0. Silent at cmd_x >= 0 (coast/push).
     cfg.rewards["braking"] = RewardTermCfg(
@@ -287,28 +312,21 @@ def make_env_cfg(
         weight=1.0,
         params={"command_name": "twist", "vel_std": 0.3},
     )
-    # Air time during push: pay the recovery-foot lift, but ONLY when the body is
-    # actually moving forward (vel_gate_ref) — otherwise a fast in-place flutter
-    # farmed this. threshold_min raised 0.15 → 0.25 to forbid ultra-short swings
-    # (caps the frantic kick cadence); glide below rewards the slow phase.
-    # air_time rewards each swing → drives swing FREQUENCY; glide rewards staying
-    # on one blade → drives commitment. Balance tilted toward glide (3.0) over
-    # air_time (2.0) because the cadence was still too fast. air_time kept high
-    # enough (2.0) that lifting the foot stays worthwhile.
-    # Calm gait: the aggressive [0.40, 1.00] window forced big long swings ->
-    # violent kicks that tipped the real robot. Back to a gentle [0.15, 0.45]
-    # (small swings allowed, none forced long) and weight 2.0 -> 1.5 so swinging
-    # is less incentivised (lower cadence). glide (below) rewards the coast, so it
-    # pushes only occasionally.
+    # Completed recovery strokes: alternate feet at 1.25--2.5 landings/s,
+    # slower than hill walking to leave time for a committed glide. Reward
+    # requires forward travel and upright posture; standing/airborne holds pay zero.
     cfg.rewards["skating_air_time"] = RewardTermCfg(
-        func=microduck_mdp.skating_air_time_reward,
+        func=alternating_landings,
         weight=1.5,
         params={
             "sensor_name": "feet_ground_contact",
             "command_name": "twist",
-            "threshold_min": 0.15,
-            "threshold_max": 0.45,
-            "vel_gate_ref": 0.2,
+            "speed_min": 0.1,
+            "speed_max": 0.6,
+            "cadence_min": 1.25,
+            "cadence_max": 2.5,
+            "min_swing_time": 0.1,
+            "scale_by_push": True,
         },
     )
     # Glide phase (single-support REQUIRED, unlike the earlier broken attempt):
@@ -629,6 +647,15 @@ def make_env_cfg(
                 ],
             },
         )
+
+    # Apply all UI weights after inherited and challenge-specific defaults.
+    for knob, reward_name in REWARD_WEIGHT_KNOBS.items():
+        cfg.rewards[reward_name].weight = knobs[knob]
+    # Scale the existing schedule so the UI sets its final strength.
+    stages = cfg.curriculum["action_rate_weight"].params["weight_stages"]
+    for stage in stages:
+        stage["weight"] *= knobs["action_rate_reward"] / -2.0
+    cfg.rewards[REWARD_WEIGHT_KNOBS["action_rate_reward"]].weight = stages[0]["weight"]
 
     return cfg
 

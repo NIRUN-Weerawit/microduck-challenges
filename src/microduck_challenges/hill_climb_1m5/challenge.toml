@@ -11,7 +11,7 @@ seed           = 1
 
 [params.forward_reward]
 label = "Follow the speed order"
-value = 2.0
+value = 3.0
 min   = 0.5
 max   = 5.0
 
@@ -22,7 +22,7 @@ min   = 0.5
 max   = 5.0
 
 [params.step_reward]
-label = "Lift your feet"
+label = "Complete alternating hill steps"
 value = 3.0
 min   = 0.0
 max   = 6.0
@@ -32,3 +32,96 @@ label = "Steepest training slope (°)"
 value = 10.0
 min   = 8.0
 max   = 15.0
+
+# Reward weights: zero disables a term; negative cost weights weaken toward zero.
+# Action smoothing and head-bias knobs specify the final curriculum weight.
+
+[params.angular_velocity_reward]
+label = "Track angular velocity"
+value = 2.0
+min = 0.0
+max = 6.0
+
+[params.pose_reward]
+label = "Pose"
+value = 1.0
+min = 0.0
+max = 5.0
+
+[params.body_ang_vel_reward]
+label = "Body ang vel penalty (negative)"
+value = -0.05
+min = -5.0
+max = 0.0
+
+[params.angular_momentum_reward]
+label = "Angular momentum penalty (negative)"
+value = -0.02
+min = -5.0
+max = 0.0
+
+[params.joint_limits_reward]
+label = "Dof pos limits penalty (negative)"
+value = -1.0
+min = -5.0
+max = 0.0
+
+[params.action_rate_reward]
+label = "Action smoothing final penalty (negative)"
+value = -0.5
+min = -5.0
+max = 0.0
+
+[params.foot_clearance_reward]
+label = "Foot clearance penalty (negative)"
+value = -2.0
+min = -6.0
+max = 0.0
+
+[params.foot_swing_height_reward]
+label = "Foot swing height penalty (negative)"
+value = -0.25
+min = -5.0
+max = 0.0
+
+[params.foot_slip_reward]
+label = "Foot slip penalty (negative)"
+value = -0.1
+min = -5.0
+max = 0.0
+
+[params.self_collisions_reward]
+label = "Self collisions penalty (negative)"
+value = -1.0
+min = -5.0
+max = 0.0
+
+[params.heading_hold_reward]
+label = "Heading hold"
+value = 1.0
+min = 0.0
+max = 5.0
+
+[params.body_pose_reward]
+label = "Body pose tracking (disabled by default)"
+value = 0.0
+min = 0.0
+max = 5.0
+
+[params.head_pose_reward]
+label = "Head pose tracking"
+value = 2.0
+min = 0.0
+max = 6.0
+
+[params.head_pose_bias_reward]
+label = "Head droop final penalty (positive weight)"
+value = 3.0
+min = 0.0
+max = 9.0
+
+[params.progress_reward]
+label = "Supported forward progress"
+value = 1.0
+min = 0.0
+max = 5.0
