@@ -159,7 +159,7 @@ def make_env_cfg(
     std_walking = {
         # Lower body
         r".*hip_yaw.*": 0.3,
-        r".*hip_roll.*": 0.05,  # 0.1→0.06→0.05 — hold the 5°-inward stance, stop the leg splay to vertical
+        r".*hip_roll.*": 0.15,  # Allow wider leg spread during locomotion; standing stays tight.
         r".*hip_pitch.*": 0.4,
         r".*knee.*": 0.4,
         r".*ankle.*": 0.25, # was 0.15
