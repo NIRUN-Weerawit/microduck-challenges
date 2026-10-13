@@ -5,15 +5,9 @@ task  = "Mjlab-Sprint2m-MicroDuck"
 kind  = "perpetual"
 
 [recipe]                  # the first training, as is
-<<<<<<< HEAD
 num_envs       = 8192
 max_iterations = 3000
 seed           = 42
-=======
-num_envs = 8192
-max_iterations = 2500
-seed = 42
->>>>>>> 349452a8b7241d893bbf6bba105a347e29a17d17
 
 [params.forward_reward]
 label = "Follow the speed order"
@@ -28,13 +22,8 @@ min   = 0.5
 max   = 5.0
 
 [params.step_reward]
-<<<<<<< HEAD
-label = "Lift your feet"
-value = 5.49391727493917
-=======
 label = "Track alternating step cadence"
-value = 5.02676399026764
->>>>>>> 349452a8b7241d893bbf6bba105a347e29a17d17
+value = 5.49391727493917
 min   = 0.0
 max   = 6.0
 
