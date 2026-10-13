@@ -129,6 +129,9 @@ from mjlab_microduck.robot.microduck_constants import MICRODUCK_WALK_ROBOT_CFG
 from mjlab_microduck.tasks import mdp as microduck_mdp
 from mjlab_microduck.tasks.symmetry import PpoWithSymmetryCfg, SYMMETRY_CFG
 
+from ..race_rewards import alternating_landings
+from .rewards import supported_forward_progress
+
 
 def heading_error(env: ManagerBasedRlEnv) -> torch.Tensor:
     """How far the trunk has turned from the heading heading_hold holds (rad, wrapped).
@@ -195,6 +198,29 @@ def _soften_terrain_contacts(spec: _mujoco.MjSpec) -> None:
     print(f"[hill terrain] spec_fn: softened {count} terrain geoms (solref=0.04)")
 
 
+# All reward weights are controlled by the workshop; ramped knobs set final weights.
+REWARD_WEIGHT_KNOBS = {
+    "progress_reward": "supported_forward_progress",
+    "forward_reward": "track_linear_velocity",
+    "upright_reward": "upright",
+    "step_reward": "air_time",
+    "angular_velocity_reward": "track_angular_velocity",
+    "pose_reward": "pose",
+    "body_ang_vel_reward": "body_ang_vel",
+    "angular_momentum_reward": "angular_momentum",
+    "joint_limits_reward": "dof_pos_limits",
+    "action_rate_reward": "action_rate_l2",
+    "foot_clearance_reward": "foot_clearance",
+    "foot_swing_height_reward": "foot_swing_height",
+    "foot_slip_reward": "foot_slip",
+    "self_collisions_reward": "self_collisions",
+    "heading_hold_reward": "heading_hold",
+    "body_pose_reward": "body_pose_tracking",
+    "head_pose_reward": "head_pose_tracking",
+    "head_pose_bias_reward": "head_pose_bias",
+}
+
+
 def make_env_cfg(
     play: bool = False,
 ) -> ManagerBasedRlEnvCfg:
@@ -216,8 +242,8 @@ def make_env_cfg(
         # Lower body
         r".*hip_yaw.*": 0.3,
         r".*hip_roll.*": 0.05,  # 0.1→0.06→0.05 — hold the 5°-inward stance, stop the leg splay to vertical
-        r".*hip_pitch.*": 0.4,
-        r".*knee.*": 0.4,
+        r".*hip_pitch.*": 0.5,  # Allow larger uphill swings without relaxing standing.
+        r".*knee.*": 0.5,
         r".*ankle.*": 0.25, # was 0.15
     }
 
@@ -334,13 +360,17 @@ def make_env_cfg(
     )
 
 
-    # air_time window [0.125, 0.300] s. NOTE: standing still at zero command is
-    # taught by the standing_envs curriculum (→25% standing envs by ~iter 2000),
-    # not by an explicit stillness/no-stepping term.
-    cfg.rewards["air_time"].weight = knobs["step_reward"]
-    cfg.rewards["air_time"].params["command_threshold"] = 0.01
-    cfg.rewards["air_time"].params["threshold_min"] = 0.125
-    cfg.rewards["air_time"].params["threshold_max"] = 0.300
+    # Complete alternating steps instead of earning reward by holding a foot up.
+    cfg.rewards["air_time"] = RewardTermCfg(
+        func=alternating_landings, weight=knobs["step_reward"],
+        params={"sensor_name": feet_ground_cfg.name, "command_name": "twist",
+                "speed_min": 0.15, "speed_max": 1.0,
+                "cadence_min": 1.8, "cadence_max": 3.2},
+    )
+    cfg.rewards["supported_forward_progress"] = RewardTermCfg(
+        func=supported_forward_progress, weight=knobs["progress_reward"],
+        params={"sensor_name": feet_ground_cfg.name, "command_name": "twist"},
+    )
 
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
@@ -900,6 +930,20 @@ def make_env_cfg(
             ],
         },
     )
+
+    # Apply all UI weights after inherited and challenge-specific defaults.
+    for knob, reward_name in REWARD_WEIGHT_KNOBS.items():
+        cfg.rewards[reward_name].weight = knobs[knob]
+    # Scale the existing schedule so the UI sets its final strength.
+    stages = cfg.curriculum["action_rate_weight"].params["weight_stages"]
+    for stage in stages:
+        stage["weight"] *= knobs["action_rate_reward"] / -1.0
+    cfg.rewards[REWARD_WEIGHT_KNOBS["action_rate_reward"]].weight = stages[0]["weight"]
+    # Scale the existing schedule so the UI sets its final strength.
+    stages = cfg.curriculum["head_pose_bias_weight"].params["weight_stages"]
+    for stage in stages:
+        stage["weight"] *= knobs["head_pose_bias_reward"] / 3.0
+    cfg.rewards[REWARD_WEIGHT_KNOBS["head_pose_bias_reward"]].weight = stages[0]["weight"]
 
     return cfg
 

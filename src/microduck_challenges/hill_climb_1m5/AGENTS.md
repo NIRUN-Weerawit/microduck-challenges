@@ -45,7 +45,7 @@ observation noise.
 
 | File | What it holds | Change it? |
 |---|---|---|
-| `challenge.toml` `[params]` | The four knobs below | Yes, first. Keep each value within its `min`/`max` (the workshop refuses others) |
+| `challenge.toml` `[params]` | All 18 reward weights plus slope control | Yes, first. Keep each value within its `min`/`max` (the workshop refuses others) |
 | `challenge.toml` `[recipe]` | `num_envs` 4096, `max_iterations` 3000, `seed` 1 | Yes, when agreed with the user |
 | `env.py` | The whole environment: rewards, commands, domain randomization, curricula, terrain, `RL_CFG` (network, PPO, checkpoints every 250 iterations) | Yes, once the knobs are not enough |
 | `rewards.py` | Does not exist yet: create it for a custom reward term, then add the term to `cfg.rewards` in `env.py` | Yes |
@@ -78,6 +78,17 @@ The robot model and the reward functions (`microduck_mdp`) live in the `mjlab-mi
 and are not edited here. Its [AGENTS.md](https://github.com/pollen-robotics/microduck_rl/blob/develop/AGENTS.md)
 holds the reward-design rules learned on this robot: read its "Reward design" section before
 writing a reward term.
+
+All configured reward weights are exposed in `[params]`, mapped by
+`REWARD_WEIGHT_KNOBS` in `env.py`. Ramped weights specify the final strength,
+with the original curriculum timing preserved. Most penalties use negative
+weights; Hill Climb head bias is self-negating and uses a positive weight.
+
+The hill recipe now uses completed alternating landings at 1.8--3.2 steps/s
+instead of airborne-duration rewards. `supported_forward_progress` pays only
+for upright, terrain-supported travel along the spawn heading. Velocity tracking
+defaults to 3.0; final action smoothing to -0.5; moving hip-pitch/knee tolerance
+to 0.5 rad. These changes are hypotheses for evaluation, not measured score gains.
 
 ## Running a training
 
