@@ -6,7 +6,7 @@ kind  = "perpetual"
 
 [recipe]                  # the first training, as is
 num_envs       = 8192
-max_iterations = 2500
+max_iterations = 3000
 seed           = 42
 
 [params.forward_reward]
@@ -17,12 +17,12 @@ max   = 5.0
 
 [params.upright_reward]
 label = "Stay upright"
-value = 1.51094890510949
+value = 0.678832116788321
 min   = 0.5
 max   = 5.0
 
 [params.step_reward]
 label = "Lift your feet"
-value = 5.02676399026764
+value = 5.49391727493917
 min   = 0.0
 max   = 6.0
