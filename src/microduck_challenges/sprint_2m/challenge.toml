@@ -11,18 +11,18 @@ seed           = 42
 
 [params.forward_reward]
 label = "Follow the speed order"
-value = 4.32409495368113
+value = 4.47080291970803
 min   = 0.5
 max   = 5.0
 
 [params.upright_reward]
 label = "Stay upright"
-value = 0.971721111652852
+value = 0.828467153284672
 min   = 0.5
 max   = 5.0
 
 [params.step_reward]
 label = "Lift your feet"
-value = 4.63091175036568
+value = 4.96350364963504
 min   = 0.0
 max   = 6.0
