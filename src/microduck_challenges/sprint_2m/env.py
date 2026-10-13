@@ -15,9 +15,8 @@ gait/feet terms, curriculum-ramped action-rate smoothing), with:
   - fixed command ranges taken straight from the Arena event's sweep
     (arena/events/sprint-2m.toml) — straight ahead only, never sideways or
     turning (see the command section below)
-  - head_pose_tracking as a primary objective, plus an EMA-based head_pose_bias
-    penalty that prices only the escapable DC head droop (see below); the head
-    command itself is held at its small initial range (no widening curriculum)
+  - head posture is free: no head-pose tracking or sustained-droop penalty;
+    head command observations retain their small range for Arena compatibility
   - body_pose tracking infra kept intact but DISABLED (weight 0) so the obs
     slot stays alive for envs that use it
   - heading_hold: the Arena commands yaw 0 and never tells the policy its
@@ -48,8 +47,8 @@ ENABLE_ENCODER_BIAS = True  # Per-env joint encoder calibration offset (actor ob
 ENABLE_BASE_ORIENTATION_RANDOMIZATION = False  # Randomize initial tilt to force reactive behavior
 
 # Head/body pose command tracking (replaces the old neck-offset disturbance scheme).
-# Head pose: 4D deltas-from-HOME on neck/head joints; vel env tracks these as a
-# primary objective. Body pose: 6D delta in [x, y, z, roll, pitch, yaw]; vel env
+# Head pose: 4D deltas-from-HOME retained for observation compatibility, without
+# a posture reward. Body pose: 6D delta in [x, y, z, roll, pitch, yaw]; vel env
 # samples small ranges + tiny reward weight so input neurons stay alive but
 # tracking isn't the priority (standup env raises the weight).
 HEAD_POSE_CMD_RESAMPLE_S = (2.0, 5.0)
@@ -229,11 +228,7 @@ def make_env_cfg(
     cfg.rewards["pose"].params["std_standing"] = std_standing  # tight when command=0
     cfg.rewards["pose"].params["std_walking"] = std_walking
     cfg.rewards["pose"].params["std_running"] = std_walking
-    # Pose reward operates on LEG joints only. Head/neck are command-driven
-    # (head_pose_tracking) — if they were in this reward too, it would pull
-    # them to HOME while head_pose_tracking pulls them to the command, and the
-    # policy converges to "ignore the command" because pose reward dominates
-    # once head_pose_tracking's gradient dies at large commands.
+    # Pose reward operates on LEG joints only: head/neck posture is free.
     cfg.rewards["pose"].params["asset_cfg"] = SceneEntityCfg(
         "robot", joint_names=(r"^(?!passive_|.*neck.*|.*head.*).*",)
     )
@@ -320,9 +315,8 @@ def make_env_cfg(
     cfg.rewards["foot_swing_height"].params["command_threshold"] = 0.01
     cfg.rewards["foot_swing_height"].params["target_height"] = 0.02  # Increased from 0.01 to force foot lifting
 
-    # NOTE: no neck-only action-rate term — the shared action_rate_l2 sums over
-    # ALL action dims (neck included), and head_pose_tracking below gives the
-    # 4 neck/head DOFs a position objective, so the neck is fully shaped.
+    # Shared action_rate_l2 still discourages abrupt commands, including neck
+    # commands, but does not impose a neutral head posture.
 
     # Events
     # BAM (mjlab_frictionloss branch) writes per-env dof_frictionloss/dof_damping
@@ -620,11 +614,9 @@ def make_env_cfg(
     cfg.commands["twist"] = microduck_mdp.VelocityCommandCommandOnlyCfg(**vars(command))
 
     # Head pose command (4D deltas from HOME, in joint order:
-    #   neck_pitch, head_pitch, head_yaw, head_roll). Tracked as a primary
-    # reward — see "head_pose_tracking" added below. Ranges are small non-zero
-    # (not zero) so the input neurons stay alive, and held there for the whole
-    # run — the Arena commands no head motion, so there is no widening
-    # curriculum here (the head stays still).
+    #   neck_pitch, head_pitch, head_yaw, head_roll). Keep the command slot and
+    # small sampling ranges for Arena observation compatibility. These commands
+    # do not constrain head posture because head tracking rewards are removed.
     cfg.commands["head_pose"] = microduck_mdp.UniformPoseCommandCfg(
         resampling_time_range=HEAD_POSE_CMD_RESAMPLE_S,
         ranges=(
@@ -663,15 +655,10 @@ def make_env_cfg(
         )
 
     # === Pose tracking rewards ===
-    # head_pose: primary objective in vel env — the whole point of the rewrite.
-    # std=0.5 with per-joint Gaussian (see head_pose_tracking in mdp.py). Final
-    # reward is the mean over 4 joints, so partial tracking is partial reward
-    # (no all-or-nothing).
-    cfg.rewards["head_pose_tracking"] = RewardTermCfg(
-        func=microduck_mdp.head_pose_tracking,
-        weight=2.0,
-        params={"command_name": "head_pose", "std": 0.5},
-    )
+    # Allow the policy to lower/lean its head without a head-posture cost.
+    # Trunk upright shaping and whole-body fall termination remain active.
+    cfg.rewards.pop("head_pose_tracking", None)
+    cfg.rewards.pop("head_pose_bias", None)
     # body_pose: infra kept intact but DISABLED (weight 0) — the obs slot and
     # command stay alive for envs that raise the weight (standup).
     cfg.rewards["body_pose_tracking"] = RewardTermCfg(
@@ -684,24 +671,6 @@ def make_env_cfg(
             "z_std": 0.02,
             "angle_std": math.radians(15),
         },
-    )
-
-    # Head droop fix (2026-08-20). The head walks pitched ~15° down (measured:
-    # run ww1g2198 head_pose_tracking 1.544/2.0 → 14.6° mean joint error).
-    # DO NOT fix this by tightening head_pose_tracking's std: run 5yay13u4 tried
-    # fine_std=0.1 and the policy stopped walking entirely by iter 300 (air_time
-    # 1.01 → 0.02, peak foot height 15 mm → 2 mm, entropy collapsed 10.9 → 1.9).
-    # An instantaneous tight tolerance taxes walking 0.77/step — 76% of the whole
-    # air_time reward — and is UNESCAPABLE, since a 280 g head (38% of robot
-    # mass) must oscillate while stepping. Standing still scored higher, so it
-    # stood still.
-    # The DC bias, unlike the oscillation, IS escapable (bias the neck command up
-    # to cancel gravity sag), so price only that: L1 on a 1 s EMA of the error.
-    # At the optimum this costs a walking policy nothing.
-    cfg.rewards["head_pose_bias"] = RewardTermCfg(
-        func=microduck_mdp.head_pose_bias_penalty,
-        weight=0.0,  # ramped by the head_pose_bias_weight curriculum below
-        params={"command_name": "head_pose", "tau_s": 1.0},
     )
 
     # Terrain: the sprint's lane is flat.
@@ -806,22 +775,8 @@ def make_env_cfg(
     del cfg.curriculum["terrain_levels"]
     del cfg.curriculum["command_vel"]
 
-    # head_pose_bias ramp: OFF until iter 600, then 1.0 → 3.0 by iter 1500.
-    # Held at 0 early because a posture-precision term is a distraction before
-    # a gait exists. At weight 3.0 a 15° residual bias costs 0.79/step and a
-    # 2° bias costs 0.10/step.
-    cfg.curriculum["head_pose_bias_weight"] = CurriculumTermCfg(
-        func=microduck_mdp.reward_weight,
-        params={
-            "reward_name": "head_pose_bias",
-            "weight_stages": [
-                {"step": 0, "weight": 0.0},
-                {"step": 600 * NUM_STEPS_PER_ENV, "weight": 1.0},
-                {"step": 1000 * NUM_STEPS_PER_ENV, "weight": 2.0},
-                {"step": 1500 * NUM_STEPS_PER_ENV, "weight": 3.0},
-            ],
-        },
-    )
+    # Never re-enable the head-droop penalty later in training.
+    cfg.curriculum.pop("head_pose_bias_weight", None)
 
     return cfg
 
