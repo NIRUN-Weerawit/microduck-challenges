@@ -23,7 +23,7 @@ max   = 5.0
 
 [params.step_reward]
 label = "Track alternating step cadence"
-value = 4.60443037974684
+value = 3.0
 min   = 0.0
 max   = 6.0
 
