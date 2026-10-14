@@ -41,6 +41,19 @@ also edits `timeline.json`, your performance, and plays it with the checkpoint y
 `uv run --group workshop workshop` opens the home and `uv run --group workshop workshop sprint-2m`
 opens one challenge.
 
+To allow multiple local runs from the workshop, apply the included compatibility
+patch after installing dependencies, then restart the workshop:
+
+```bash
+uv run --group workshop python scripts/enable_parallel_training.py
+uv run --group workshop workshop sprint-2m
+```
+
+Runs retain separate tickets, reward settings and launch commits. Launch requests
+are serialized, but training processes can overlap and share the GPU. Use distinct
+run names and size environment counts to fit available GPU memory. Reapply the
+patch if an Arena package update replaces the installed files.
+
 ## Train from a shell
 
 Needs Python 3.12 and `uv`. Training needs an NVIDIA GPU, or Hugging Face Jobs.
