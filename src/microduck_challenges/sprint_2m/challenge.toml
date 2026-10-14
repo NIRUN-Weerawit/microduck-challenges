@@ -17,7 +17,7 @@ max   = 5.0
 
 [params.upright_reward]
 label = "Stay upright"
-value = 0.635036496350365
+value = 1.61313868613139
 min   = 0.5
 max   = 5.0
 
@@ -55,7 +55,7 @@ max = 0.0
 
 [params.joint_limits_reward]
 label = "Joint limit penalty (negative)"
-value = -1.0
+value = -0.535279805352798
 min = -5.0
 max = 0.0
 
