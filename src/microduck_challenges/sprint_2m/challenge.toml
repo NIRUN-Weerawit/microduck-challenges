@@ -23,7 +23,7 @@ max   = 5.0
 
 [params.step_reward]
 label = "Completed alternating steps (free cadence)"
-value = 0.5
+value = 4.69936708860759
 min   = 0.0
 max   = 6.0
 
