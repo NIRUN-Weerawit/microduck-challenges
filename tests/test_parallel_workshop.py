@@ -28,7 +28,10 @@ def test_patch_is_idempotent_and_retains_launch_lock():
     patch = patch_module()
     root = Path(server.__file__).parent
     app = (root / "app.py").read_text().replace(patch.ALLOW, patch.GUARD)
-    training = (root / "training.py").read_text().replace(patch.SNAPSHOT, patch.SPAWN).replace(patch.FROZEN_ENV, patch.CHILD_ENV)
+    training = (root / "training.py").read_text()
+    training = training.replace(
+        '        if warm_start is not None:\n            launch_env["MICRODUCK_WARM_START"] = "1"\n', '')
+    training = training.replace(patch.SNAPSHOT, patch.SPAWN).replace(patch.FROZEN_ENV, patch.CHILD_ENV)
     changed = patch.transform_sources(app, training)
     assert patch.GUARD not in changed[0]
     assert 'ws.lock.acquire(blocking=False)' in changed[0]

@@ -34,7 +34,7 @@ def transform_sources(app, training):
         if app.count(GUARD) != 1:
             raise ValueError("Unsupported workshop launch guard; no files changed.")
         app = app.replace(GUARD, ALLOW)
-    if SNAPSHOT not in training:
+    if 'MICRODUCK_WORKSHOP_LAUNCH_SNAPSHOT' not in training:
         if training.count(SPAWN) != 1 or training.count(CHILD_ENV) != 1:
             raise ValueError("Unsupported workshop Training implementation; no files changed.")
         training = training.replace("import os\n", "import os\nimport json\nimport tomllib\n", 1)

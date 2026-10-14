@@ -46,13 +46,19 @@ patch after installing dependencies, then restart the workshop:
 
 ```bash
 uv run --group workshop python scripts/enable_parallel_training.py
+uv run --group workshop python scripts/enable_warm_start.py
 uv run --group workshop workshop sprint-2m
 ```
 
 Runs retain separate tickets, reward settings and launch commits. Launch requests
 are serialized, but training processes can overlap and share the GPU. Use distinct
 run names and size environment counts to fit available GPU memory. Reapply the
-patch if an Arena package update replaces the installed files.
+patches if an Arena package update replaces the installed files. On the New
+training form, **Start from** lists this challenge's local checkpoints. Select
+one to load its policy and start a new run at iteration 0, with curricula
+restarted. This uses the trainer's `MICRODUCK_WARM_START=1` support; the
+checkpoint's optimizer and normalizer are loaded as well. Warm start is
+available for local training only. The source checkpoint is kept untouched.
 
 ## Train from a shell
 
