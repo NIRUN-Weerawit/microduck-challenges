@@ -6,19 +6,19 @@ task  = "Mjlab-RollerSprint2m-MicroDuck"
 kind  = "perpetual"
 
 [recipe]                  # the first training, as is
-num_envs       = 4096
+num_envs       = 1024
 max_iterations = 3000
 seed           = 1
 
 [params.speed_reward]
 label = "Wheel speed reward"
-value = 10.0
+value = 15.0158227848101
 min   = 2.0
 max   = 20.0
 
 [params.upright_reward]
 label = "Stay upright"
-value = 2.0
+value = 0.834651898734177
 min   = 0.5
 max   = 5.0
 
@@ -99,19 +99,19 @@ max = 0.0
 
 [params.braking_reward]
 label = "Braking"
-value = 1.0
+value = 1.00474683544304
 min = 0.0
 max = 5.0
 
 [params.skating_air_time_reward]
 label = "Complete alternating recovery strokes"
-value = 1.5
+value = 2.96677215189873
 min = 0.0
 max = 5.0
 
 [params.glide_reward]
 label = "Glide"
-value = 4.0
+value = 1.4620253164557
 min = 0.0
 max = 12.0
 
@@ -129,12 +129,12 @@ max = 0.0
 
 [params.forward_lean_reward]
 label = "Forward lean"
-value = 1.5
+value = 3.93196202531646
 min = 0.0
 max = 5.0
 
 [params.heading_hold_reward]
 label = "Heading hold"
-value = 1.0
+value = 0.055379746835443
 min = 0.0
 max = 5.0
