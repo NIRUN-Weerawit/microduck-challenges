@@ -46,21 +46,33 @@ observation noise.
 | `challenge.toml` `[params]` | All 15 reward weights; the original three are listed below | Yes, first. Keep each value within its `min`/`max` (the workshop refuses others) |
 | `challenge.toml` `[recipe]` | `num_envs` 4096, `max_iterations` 3000, `seed` 1 | Yes, when agreed with the user |
 | `env.py` | The whole environment: rewards, commands, domain randomization, curricula, terrain, `RL_CFG` (network, PPO, checkpoints every 250 iterations) | Yes, once the knobs are not enough |
-| `rewards.py` | Does not exist yet: create it for a custom reward term, then add the term to `cfg.rewards` in `env.py` | Yes |
+| `rewards.py` | Sprint course-speed and completed-step rewards | Yes |
 | `tasks.py`, `event`/`task`/`kind` in `challenge.toml` | Registration with mjlab and the Arena | No |
 
 | Knob | Label | Default | Range | Sets in `env.py` |
 |---|---|---|---|---|
-| `forward_reward` | Follow the speed order | 2.0 | 0.5–5.0 | `track_linear_velocity` weight |
+| `forward_reward` | Forward race progress | 5.0 | 0.5–5.0 | `track_linear_velocity` weight |
 | `upright_reward` | Stay upright | 2.0 | 0.5–5.0 | `upright` weight |
-| `step_reward` | Lift your feet | 3.0 | 0.0–6.0 | `air_time` weight |
+| `step_reward` | Complete alternating steps | 0.5 | 0.0–6.0 | `air_time` weight |
 
 Every configured sprint reward is exposed in `[params]`; `REWARD_WEIGHT_KNOBS`
 in `env.py` maps UI controls to reward terms. Penalty weights are negative, with
 zero disabling them. `action_rate_reward` sets the final smoothing weight;
 the curriculum starts at 20% of it and reaches 100% at iteration 1500.
-The `air_time` term now rewards completed alternating steps at speed-dependent
-cadence, rather than time spent airborne. Head posture rewards remain removed.
+The `air_time` term rewards completed alternating steps rather than time spent
+airborne. Head posture rewards remain removed.
+
+The sprint now rewards bounded forward course speed (`sprint_forward_progress`)
+instead of matching command velocity. Positive commands scale effort; speeds
+above the command remain valuable, and vertical running motion is not taxed by
+the forward objective. The main term keeps the `track_linear_velocity` name for
+UI compatibility. The alternating-step bonus credits actual inter-landing time,
+with a 0.5 s cap, without prescribing cadence; its default weight is 0.5.
+Upright tolerance uses std²=0.15 to permit dynamic lean, while fall termination
+and joint limits remain active. Keep the verified ±5 mm CoM caps.
+The public strata-sprint-we5 reference scored 0.908 s, 5/5 on this machine;
+its timed trace averaged about 2.24 m/s versus 1.26 m/s for com5_step3's best.
+These observations motivate the new objective, not a claim of achieved speed.
 
 Do not change, or the Arena cannot race the policy or the tests fail:
 

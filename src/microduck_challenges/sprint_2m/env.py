@@ -6,7 +6,7 @@ read from challenge.toml ([params]). Everything here is yours to change; the
 robot (MICRODUCK_WALK_ROBOT_CFG) and the reward functions (microduck_mdp)
 come from mjlab_microduck and are not edited here.
 
-The main locomotion task: velocity-command tracking + head-pose commands.
+The main locomotion task: course-speed progress with free head posture.
 The reward/regularization recipe is locomotion-focused (lean tracking +
 gait/feet terms, curriculum-ramped action-rate smoothing), with:
 
@@ -124,7 +124,7 @@ from mjlab_microduck.robot.microduck_constants import MICRODUCK_WALK_ROBOT_CFG
 from mjlab_microduck.tasks import mdp as microduck_mdp
 from mjlab_microduck.tasks.symmetry import PpoWithSymmetryCfg, SYMMETRY_CFG
 
-from .rewards import alternating_step_cadence
+from .rewards import alternating_step_cadence, sprint_forward_progress
 
 # Every configured reward has a workshop knob. Penalties use negative weights;
 # action_rate_reward specifies the final curriculum weight, not its initial value.
@@ -259,15 +259,10 @@ def make_env_cfg(
 
     # Body-specific reward configurations
     cfg.rewards["upright"].params["asset_cfg"].body_names = ("trunk_base",)
-    # upright: deliberately strong (2.0 / std²=0.05, was 1.0 / std²=0.1).
-    # 2026-07 pitch-vs-speed eval: the policy walks with a +2-4° steady forward
-    # lean (p90 ~6-8°) and ~2/3 of push-induced falls at speed are FORWARD. At
-    # weight 1.0 / std²=0.1 a 4° lean cost ~0.05/step — effectively free. At
-    # 2.0 / std²=0.05 it costs ~0.19/step: enough gradient to hold the trunk
-    # level in steady gait while transient lean (push recovery, accel) stays
-    # affordable.
     cfg.rewards["upright"].weight = knobs["upright_reward"]
-    cfg.rewards["upright"].params["std"] = math.sqrt(0.05)
+    # Allow dynamic running lean while still strongly pricing severe tilt.
+    # The sub-second public reference averages ~20 degrees of trunk tilt.
+    cfg.rewards["upright"].params["std"] = math.sqrt(0.15)
 
     # Foot-specific configurations. In mjlab 1.3.0 foot_swing_height is fully
     # sensor-driven (no asset_cfg); only foot_clearance/foot_slip still carry an
@@ -297,7 +292,7 @@ def make_env_cfg(
 
 
     # Keep the air_time term name so the workshop's step_reward knob stays live.
-    # Pay for completed alternating steps, rather than time spent airborne.
+    # Pay a small bonus for completed alternation without imposing step timing.
     cfg.rewards["air_time"] = RewardTermCfg(
         func=alternating_step_cadence,
         weight=knobs["step_reward"],
@@ -307,9 +302,12 @@ def make_env_cfg(
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
 
-    # Velocity tracking rewards
-    cfg.rewards["track_linear_velocity"].weight = knobs["forward_reward"]
-    cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(0.1)
+    # Race objective: reward course speed beyond the command, with no vertical
+    # velocity cost. Keep the term name so the existing workshop knob stays live.
+    cfg.rewards["track_linear_velocity"] = RewardTermCfg(
+        func=sprint_forward_progress, weight=knobs["forward_reward"],
+        params={"command_name": "twist", "speed_scale": 2.0},
+    )
     cfg.rewards["track_angular_velocity"].weight = 2.0
     cfg.rewards["track_angular_velocity"].params["std"] = math.sqrt(0.5)
 

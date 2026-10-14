@@ -10,7 +10,7 @@ max_iterations = 3000
 seed           = 42
 
 [params.forward_reward]
-label = "Follow the speed order"
+label = "Forward race progress (no command speed ceiling)"
 value = 5.0
 min   = 0.5
 max   = 5.0
@@ -22,8 +22,8 @@ min   = 0.5
 max   = 5.0
 
 [params.step_reward]
-label = "Track alternating step cadence"
-value = 3.0
+label = "Completed alternating steps (free cadence)"
+value = 0.5
 min   = 0.0
 max   = 6.0
 
