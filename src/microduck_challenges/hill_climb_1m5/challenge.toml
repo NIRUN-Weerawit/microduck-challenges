@@ -11,7 +11,7 @@ seed           = 1
 
 [params.forward_reward]
 label = "Follow the speed order"
-value = 3.99604430379747
+value = 3.04193037974684
 min   = 0.5
 max   = 5.0
 
@@ -23,13 +23,13 @@ max   = 5.0
 
 [params.step_reward]
 label = "Complete alternating hill steps"
-value = 3.00949367088608
+value = 2.2120253164557
 min   = 0.0
 max   = 6.0
 
 [params.max_slope_deg]
 label = "Steepest training slope (°)"
-value = 8.0
+value = 10.0268987341772
 min   = 8.0
 max   = 15.0
 
@@ -98,7 +98,7 @@ max = 0.0
 
 [params.heading_hold_reward]
 label = "Heading hold"
-value = 0.118670886075949
+value = 0.988924050632911
 min = 0.0
 max = 5.0
 
