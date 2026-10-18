@@ -17,13 +17,13 @@ max   = 5.0
 
 [params.upright_reward]
 label = "Stay upright"
-value = 1.03649635036496
+value = 0.532846715328467
 min   = 0.5
 max   = 5.0
 
 [params.step_reward]
 label = "Completed alternating steps (free cadence)"
-value = 3.47931873479319
+value = 2.98296836982968
 min   = 0.0
 max   = 6.0
 
